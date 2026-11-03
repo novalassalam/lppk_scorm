@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Data project pengguna (video & hasil SCORM)
+projects/
+
+# Video & hasil generate (besar)
+*.mp4
+*.m4v
+*.mov
+*.mkv
+*.webm
+*.avi
+*_scorm.zip
+
+# Profil browser (berisi cookie/riwayat login)
+chrome-prof2/
+
+# macOS
+.DS_Store

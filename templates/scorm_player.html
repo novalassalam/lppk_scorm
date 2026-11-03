@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__TITLE__</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f172a;display:flex;flex-direction:column;align-items:center;
+     justify-content:center;min-height:100vh;font-family:system-ui,sans-serif;
+     color:#e2e8f0;padding:16px}
+.wrap{width:100%;max-width:900px;background:#1e293b;border-radius:12px;
+      overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.titlebar{padding:10px 18px;font-size:13px;font-weight:600;color:#94a3b8;
+          border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.badge{font-size:11px;background:#334155;padding:3px 8px;border-radius:10px;white-space:nowrap}
+.vwrap{position:relative;background:#000}
+video{width:100%;display:block}
+#subBox{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+        max-width:90%;text-align:center;z-index:20;pointer-events:none;
+        font-size:18px;font-weight:500;color:#fff;line-height:1.5;
+        text-shadow:0 1px 5px #000;background:rgba(0,0,0,.6);
+        padding:5px 16px;border-radius:6px;display:none;white-space:pre-line}
+#vOverlay{position:absolute;inset:0;z-index:10}
+.ctrl{display:flex;align-items:center;gap:10px;padding:10px 14px}
+.btn{background:#334155;border:none;color:#e2e8f0;width:38px;height:38px;
+     border-radius:8px;cursor:pointer;font-size:17px;display:flex;
+     align-items:center;justify-content:center;flex-shrink:0}
+.btn:hover{background:#475569}
+.prog-wrap{flex:1}
+.prog-bg{height:6px;background:#334155;border-radius:3px;overflow:hidden;cursor:not-allowed}
+.prog-fill{height:100%;background:#3b82f6;width:0%;transition:width .4s}
+.timedsp{font-size:12px;color:#94a3b8;white-space:nowrap;min-width:90px;text-align:right}
+.vol{width:60px;accent-color:#3b82f6;cursor:pointer}
+.statbar{padding:6px 14px;background:#0f172a;font-size:12px;color:#64748b;
+         display:flex;justify-content:space-between;align-items:center}
+.pct{color:#38bdf8;font-weight:700}
+.score-info{font-size:11px;color:#a78bfa}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);
+         z-index:9999;align-items:center;justify-content:center;padding:16px}
+.overlay.show{display:flex}
+.quiz-box{background:#1e293b;border:2px solid #3b82f6;border-radius:16px;
+          padding:28px 32px;max-width:600px;width:100%}
+.quiz-meta{font-size:11px;color:#64748b;margin-bottom:12px;display:flex;
+           justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
+.quiz-num{color:#3b82f6;font-weight:600}
+.tag{background:#334155;padding:2px 8px;border-radius:8px}
+.tag.bobot{background:#4c1d95;color:#ddd6fe;font-weight:700}
+.quiz-q{font-size:17px;font-weight:600;color:#f1f5f9;margin-bottom:20px;line-height:1.5}
+.opts{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.opt-btn{background:#334155;border:2px solid transparent;color:#e2e8f0;padding:12px 18px;
+         border-radius:10px;cursor:pointer;text-align:left;font-size:14px;line-height:1.4}
+.opt-btn:hover:not(:disabled){background:#475569;border-color:#3b82f6}
+.opt-btn.correct{background:#14532d;border-color:#22c55e;color:#dcfce7}
+.opt-btn.wrong{background:#450a0a;border-color:#ef4444;color:#fee2e2}
+.opt-btn:disabled{cursor:default}
+.opt-btn.multi::before{content:'☐  '}
+.opt-btn.multi.selected::before,.opt-btn.multi.correct::before{content:'☑  '}
+.opt-btn.selected{background:#1e3a8a;border-color:#3b82f6}
+.opt-btn.missed{border-color:#22c55e;border-style:dashed}
+.opts.tf{flex-direction:row}
+.opts.tf .opt-btn{flex:1;text-align:center;font-weight:600}
+.quiz-hint{font-size:12px;color:#94a3b8;margin:-12px 0 14px}
+.quiz-next.quiz-submit{background:#7c3aed;margin-bottom:12px}
+.quiz-next.quiz-submit:hover{background:#6d28d9}
+.quiz-submit:disabled{opacity:.45;cursor:not-allowed}
+.quiz-fb{font-size:14px;font-weight:600;margin-bottom:16px;padding:8px 14px;border-radius:8px;display:none}
+.quiz-fb.ok{display:block;background:#14532d;color:#86efac}
+.quiz-fb.err{display:block;background:#450a0a;color:#fca5a5}
+.quiz-next{width:100%;padding:12px;background:#3b82f6;color:#fff;border:none;
+           border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;display:none}
+.quiz-next:hover{background:#2563eb}
+.done-box{background:#1e293b;border:2px solid #22c55e;border-radius:16px;
+          padding:32px 48px;text-align:center;max-width:440px}
+.done-box h2{color:#22c55e;font-size:26px;margin-bottom:8px}
+.done-box p{color:#94a3b8;font-size:14px;margin-top:6px}
+.done-score{font-size:36px;font-weight:700;color:#a78bfa;margin:16px 0 4px}
+/* Fullscreen: seluruh player (video + subtitle + kuis) ikut fullscreen */
+#player:fullscreen,#player:-webkit-full-screen{max-width:none;width:100vw;height:100vh;border-radius:0;
+  display:flex;flex-direction:column;background:#000}
+#player.pseudo-fs{position:fixed;inset:0;z-index:9000;max-width:none;width:100vw;height:100vh;
+  border-radius:0;display:flex;flex-direction:column;background:#000}
+#player:fullscreen .vwrap,#player:-webkit-full-screen .vwrap,#player.pseudo-fs .vwrap{flex:1;min-height:0}
+#player:fullscreen video,#player:-webkit-full-screen video,#player.pseudo-fs video{height:100%;object-fit:contain}
+#player:fullscreen #subBox,#player.pseudo-fs #subBox{font-size:26px;bottom:24px}
+</style>
+</head>
+<body>
+<div class="wrap" id="player">
+  <div class="titlebar"><span>📹 __TITLE__</span><span class="badge">__QUIZ_NOTE__</span></div>
+  <div class="vwrap">
+    <video id="v" preload="auto" playsinline>
+      <source src="__VIDEO__" type="video/mp4">
+      __SUB_TRACK__
+    </video>
+    <div id="subBox"></div>
+    <div id="vOverlay"></div>
+  </div>
+  <div class="ctrl">
+    <button class="btn" id="btnPlay">▶</button>
+    <div class="prog-wrap"><div class="prog-bg" id="pb" title="Tidak bisa skip ke depan"><div class="prog-fill" id="pf"></div></div></div>
+    <div class="timedsp" id="td">0:00 / 0:00</div>
+    <span>🔊</span><input type="range" class="vol" id="vol" min="0" max="1" step="0.05" value="1">
+    __SUB_BTN__
+    <button class="btn" id="btnFs" title="Layar penuh (F)">⛶</button>
+  </div>
+  <div class="statbar">
+    <span id="st">Belum ditonton</span>
+    <span style="display:flex;gap:12px"><span class="score-info" id="scoreInfo"></span><span class="pct" id="pct">0%</span></span>
+  </div>
+
+<div class="overlay" id="quizOverlay">
+  <div class="quiz-box">
+    <div class="quiz-meta">
+      <span class="quiz-num" id="quizNum"></span>
+      <span style="display:flex;gap:6px"><span class="tag" id="quizTime"></span><span class="tag bobot" id="quizBobot"></span></span>
+    </div>
+    <div class="quiz-q" id="quizQ"></div>
+    <div class="quiz-hint" id="quizHint"></div>
+    <div class="opts" id="quizOpts"></div>
+    <button class="quiz-next quiz-submit" id="quizSubmit">✔ Kirim jawaban</button>
+    <div class="quiz-fb" id="quizFb"></div>
+    <button class="quiz-next" id="quizNext">▶ Lanjutkan Video</button>
+  </div>
+</div>
+
+<div class="overlay" id="doneOverlay">
+  <div class="done-box">
+    <h2>✅ Selesai!</h2>
+    <div class="done-score" id="doneScore"></div>
+    <p id="doneMsg"></p>
+  </div>
+</div>
+</div><!-- /#player: overlay kuis di dalam player agar tetap tampil saat fullscreen -->
+
+<script>
+// ── SCORM API (1.2: window.API · 2004: window.API_1484_11) ───────────
+var V12 = '__SCORM_VERSION__'==='1.2';
+var API=null, terminated=false;
+function findAPI(w){
+  var key=V12?'API':'API_1484_11', n=0;
+  while(w){
+    try{ if(w[key]) return w[key]; }catch(e){}
+    if(w.parent===w || ++n>500) break;
+    w=w.parent;
+  }
+  return null;
+}
+function getAPI(){
+  if(!API){ API=findAPI(window); if(!API&&window.opener) API=findAPI(window.opener); }
+  return API;
+}
+function sc(fn,a,b){
+  var api=getAPI(); if(!api||terminated) return '';
+  try{
+    if(fn==='init')   return V12?api.LMSInitialize(''):api.Initialize('');
+    if(fn==='set')    return V12?api.LMSSetValue(a,String(b)):api.SetValue(a,String(b));
+    if(fn==='get')    return V12?api.LMSGetValue(a):api.GetValue(a);
+    if(fn==='commit') return V12?api.LMSCommit(''):api.Commit('');
+    if(fn==='term'){ terminated=true; return V12?api.LMSFinish(''):api.Terminate(''); }
+  }catch(e){ return ''; }
+}
+
+// ── Data ─────────────────────────────────────────────────────────────
+var QUESTIONS  = __QUESTIONS_JSON__;
+var PASSING    = __PASSING__;
+var totalQ     = QUESTIONS.length;
+var totalBobot = QUESTIONS.reduce(function(s,q){return s+(q.bobot||0);},0)||100;
+var answered   = {}, correctN=0;
+var maxW=0, dur=0, t0=Date.now(), videoCompleted=false;
+
+function pad(n){return (n<10?'0':'')+n;}
+function fmt(s){var m=Math.floor(s/60),s2=Math.floor(s%60);return m+':'+pad(s2);}
+function fmtLong(s){ s=Math.floor(s); var h=Math.floor(s/3600),m=Math.floor(s%3600/60);
+  return (h?h+':'+pad(m):pad(m))+':'+pad(s%60); }
+function isoDuration(sec){
+  var h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=Math.floor(sec%60);
+  return 'PT'+h+'H'+m+'M'+s+'S';
+}
+function hms(sec){   // SCORM 1.2 CMITimespan HH:MM:SS
+  sec=Math.floor(sec); return pad(Math.floor(sec/3600))+':'+pad(Math.floor(sec%3600/60))+':'+pad(sec%60);
+}
+function clock(){ var d=new Date(); return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds()); }
+function timestamp(){
+  var d=new Date();
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+clock();
+}
+function answeredCount(){ return Object.keys(answered).length; }
+function earnedBobot(){
+  var e=0; for(var i=0;i<totalQ;i++) if(answered[i]===true) e+=(QUESTIONS[i].bobot||0); return e;
+}
+function quizScore(){ return totalQ===0 ? 100 : Math.min(100,Math.round(earnedBobot()/totalBobot*100)); }
+function isComplete(){ return videoCompleted && answeredCount()>=totalQ; }
+function videoPct(){ return dur ? Math.min(100,Math.round(maxW/dur*100)) : 0; }
+// cmi.score.raw (kolom Score & Gradebook): ada kuis → nilai kuis, tanpa kuis → % video
+function reportScore(){ return totalQ>0 ? quizScore() : videoPct(); }
+// Lulus: ada kuis → nilai kuis ≥ PASSING; tanpa kuis → % video ≥ PASSING
+function isPassed(){ return totalQ>0 ? quizScore()>=PASSING : videoPct()>=PASSING; }
+
+// ── Simpan ke LMS ────────────────────────────────────────────────────
+function save(fin){
+  if(terminated) return;
+  if(!dur){ if(fin){ sc('commit'); sc('term'); } return; }
+  var vPct  = videoPct();
+  var score = reportScore();
+  var done  = isComplete();
+  var pass  = isPassed();
+  var secs  = (Date.now()-t0)/1000;
+
+  if(V12){
+    sc('set','cmi.core.lesson_location', maxW.toFixed(2));
+    sc('set','cmi.core.score.min',       0);
+    sc('set','cmi.core.score.max',       100);
+    sc('set','cmi.core.score.raw',       score);
+    sc('set','cmi.core.lesson_status',   done ? (pass?'passed':'failed') : 'incomplete');
+    sc('set','cmi.core.session_time',    hms(secs));
+    sc('set','cmi.core.exit',            done?'':'suspend');
+  } else {
+    sc('set','cmi.location',          maxW.toFixed(2));
+    sc('set','cmi.progress_measure',  (vPct/100).toFixed(2));
+    sc('set','cmi.score.min',         0);
+    sc('set','cmi.score.max',         100);
+    sc('set','cmi.score.raw',         score);
+    sc('set','cmi.score.scaled',      (score/100).toFixed(2));
+    sc('set','cmi.completion_status', done?'completed':'incomplete');
+    sc('set','cmi.success_status',    done ? (pass?'passed':'failed') : 'unknown');
+    sc('set','cmi.session_time',      isoDuration(secs));
+    sc('set','cmi.exit',              done?'normal':'suspend');
+  }
+  sc('set','cmi.suspend_data', JSON.stringify({
+    maxW:maxW, totalDur:dur, passing:PASSING, totalQ:totalQ, videoPct:vPct, quizScore:totalQ>0?quizScore():null,
+    answered:answered, correctN:correctN, videoCompleted:videoCompleted, layout:LAYOUT
+  }));
+  writeSummaries();
+  saveObjectives(vPct);
+  sc('commit');
+  if(fin) sc('term');
+}
+
+// ── Objectives: nilai video & nilai kuis terpisah (Moodle: Objectives report)
+function setObjective(n, id, raw, status){   // status: passed|failed|completed|incomplete
+  var p='cmi.objectives.'+n+'.';
+  sc('set',p+'id',id);
+  sc('set',p+'score.min',0);
+  sc('set',p+'score.max',100);
+  sc('set',p+'score.raw',raw);
+  if(V12) sc('set',p+'status',status);
+  else {
+    sc('set',p+'score.scaled',(raw/100).toFixed(2));
+    sc('set',p+'completion_status', status==='incomplete'?'incomplete':'completed');
+    sc('set',p+'success_status', status==='passed'||status==='failed' ? status : 'unknown');
+  }
+}
+function saveObjectives(vPct){
+  setObjective(0,'VIDEO_DITONTON',vPct, videoCompleted?'completed':'incomplete');
+  if(totalQ>0){
+    var qs=quizScore();
+    setObjective(1,'HASIL_KUIS_FINAL',qs, answeredCount()>=totalQ ? (qs>=PASSING?'passed':'failed') : 'incomplete');
+  }
+}
+
+// ── Interactions: jawaban per soal (Moodle: Interactions report)
+function slugId(s){ return s.replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60); }
+function optLabel(q,i){ return (String.fromCharCode(65+i)+'. '+q.options[i]).slice(0,250); }
+// Susunan interaction tetap (kolom Interactions report selalu sama untuk semua peserta):
+//   0 = VIDEO_DITONTON    (Response "tonton / durasi", Result = % video)  — diperbarui tiap simpan
+//   1 = HASIL_KUIS_FINAL  (Response "x/n benar · poin", Result = nilai)  — hanya jika ada kuis
+//   2.. = soal 1, 2, 3, … (urut nomor soal)
+var LAYOUT = 2;                       // versi susunan, disimpan di suspend_data
+var Q_BASE = totalQ>0 ? 2 : 1;
+var legacyAttempt = false;            // attempt dari paket lama: jangan timpa interaction-nya
+
+function setNumericInteraction(n, id, response, desc, result){
+  var p='cmi.interactions.'+n+'.';
+  sc('set',p+'id',        id);
+  sc('set',p+'type',      'numeric');
+  sc('set',p+'weighting', 0);
+  if(V12){
+    sc('set',p+'time',             clock());
+    sc('set',p+'student_response', response);
+  } else {
+    sc('set',p+'description',      desc);
+    sc('set',p+'timestamp',        timestamp());
+    sc('set',p+'learner_response', result);
+  }
+  sc('set',p+'result', result);
+}
+function writeSummaries(){
+  if(legacyAttempt || !dur) return;
+  var watch=fmtLong(maxW)+' / '+fmtLong(dur);
+  setNumericInteraction(0,'VIDEO_DITONTON', watch+' ('+videoPct()+'%)',
+                        'Video ditonton '+watch, videoPct());
+  if(totalQ>0){
+    var info=correctN+'/'+totalQ+' benar · '+earnedBobot()+'/'+totalBobot+' poin'
+             +(answeredCount()<totalQ ? ' · dijawab '+answeredCount()+'/'+totalQ : '');
+    setNumericInteraction(1,'HASIL_KUIS_FINAL', info, 'Hasil kuis: '+info, quizScore());
+  }
+}
+
+function letter(i){ return String.fromCharCode(65+i); }
+// Teks jawaban untuk laporan Moodle 1.2 (maks 255 karakter; jika kepanjangan → huruf saja)
+function respText(q, arr){
+  if(q.type==='truefalse') return q.options[arr[0]];
+  var s=arr.slice().sort().map(function(i){ return optLabel(q,i); }).join(' | ');
+  return s.length<=250 ? s : arr.slice().sort().map(letter).join(', ');
+}
+// SCORM 2004: true-false → true/false, choice → A[,]B
+function resp2004(q, arr){
+  if(q.type==='truefalse') return arr[0]===0 ? 'true' : 'false';
+  return arr.slice().sort().map(letter).join('[,]');
+}
+function recordInteraction(idx, chosen, ok){
+  var q=QUESTIONS[idx];
+  var count=parseInt(sc('get','cmi.interactions._count'),10)||0;
+  var n=legacyAttempt ? count : Math.min(Q_BASE+idx, count);
+  var p='cmi.interactions.'+n+'.';
+  sc('set',p+'id',        'Q'+(idx+1)+'_'+slugId(q.question));
+  sc('set',p+'type',      q.type==='truefalse' ? 'true-false' : 'choice');
+  sc('set',p+'weighting', q.bobot||0);
+  if(V12){
+    sc('set',p+'time',                        clock());
+    sc('set',p+'correct_responses.0.pattern', respText(q,q.correct));
+    sc('set',p+'student_response',            respText(q,chosen));
+    sc('set',p+'result',                      ok?'correct':'wrong');
+  } else {
+    sc('set',p+'description',                 q.question.slice(0,250));
+    sc('set',p+'timestamp',                   timestamp());
+    sc('set',p+'correct_responses.0.pattern', resp2004(q,q.correct));
+    sc('set',p+'learner_response',            resp2004(q,chosen));
+    sc('set',p+'result',                      ok?'correct':'incorrect');
+  }
+}
+
+// ── DOM ──────────────────────────────────────────────────────────────
+function $(id){return document.getElementById(id);}
+var v=$('v'), bp=$('btnPlay'), pf=$('pf'), pb=$('pb'), td=$('td'), st=$('st'), pct=$('pct'),
+    scoreInfo=$('scoreInfo'), quizOverlay=$('quizOverlay'), quizOpts=$('quizOpts'),
+    quizFb=$('quizFb'), quizNext=$('quizNext'), doneOverlay=$('doneOverlay');
+
+// ── Init / resume ────────────────────────────────────────────────────
+sc('init');
+if(V12){
+  var ls=sc('get','cmi.core.lesson_status');
+  if(!ls || ls==='not attempted') sc('set','cmi.core.lesson_status','incomplete');
+} else if(sc('get','cmi.completion_status')!=='completed'){
+  sc('set','cmi.completion_status','incomplete');
+}
+try{
+  var pd=JSON.parse(sc('get','cmi.suspend_data')||'{}');
+  if(pd.maxW)           maxW=pd.maxW;
+  if(pd.answered)       answered=pd.answered;
+  if(pd.correctN)       correctN=pd.correctN;
+  if(pd.videoCompleted) videoCompleted=true;
+  legacyAttempt = !pd.layout && (parseInt(sc('get','cmi.interactions._count'),10)||0)>0;
+}catch(e){}
+var prevLoc=parseFloat(sc('get',V12?'cmi.core.lesson_location':'cmi.location'))||0;
+if(totalQ>0 && answeredCount()>0) scoreInfo.textContent='Quiz: '+quizScore()+' poin';
+
+// ── Quiz ─────────────────────────────────────────────────────────────
+var currentQuiz=null;
+function shuffle(a){
+  a=a.slice();
+  for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
+  return a;
+}
+function nextPending(t){
+  for(var i=0;i<totalQ;i++) if(answered[i]===undefined && QUESTIONS[i].time<=t) return i;
+  return -1;
+}
+function sameSet(a,b){
+  if(a.length!==b.length) return false;
+  a=a.slice().sort(); b=b.slice().sort();
+  for(var i=0;i<a.length;i++) if(a[i]!==b[i]) return false;
+  return true;
+}
+var HINTS={ single:'Pilih satu jawaban.', truefalse:'Pilih Benar atau Salah.',
+            multiple:'Pilih SEMUA jawaban yang benar, lalu klik "Kirim jawaban". Nilai penuh hanya jika semua tepat.' };
+var quizSubmit=$('quizSubmit');
+
+function showQuiz(idx){
+  currentQuiz=idx; v.pause();
+  var q=QUESTIONS[idx], multi=q.type==='multiple', selected={}, btns=[];
+  $('quizNum').textContent='Pertanyaan '+(answeredCount()+1)+' dari '+totalQ;
+  $('quizTime').textContent='⏱ '+q.timeFmt;
+  $('quizBobot').textContent='Bobot: '+(q.bobot||0);
+  $('quizQ').textContent=q.question;
+  $('quizHint').textContent=HINTS[q.type]||HINTS.single;
+  quizOpts.innerHTML=''; quizOpts.className='opts'+(q.type==='truefalse'?' tf':'');
+  quizFb.className='quiz-fb'; quizNext.style.display='none';
+  quizSubmit.style.display=multi?'block':'none'; quizSubmit.disabled=true;
+
+  var order = q.type==='truefalse' ? [0,1] : shuffle(q.options.map(function(_,i){return i;}));
+  order.forEach(function(origIdx){
+    var btn=document.createElement('button');
+    btn.className='opt-btn'+(multi?' multi':''); btn.textContent=q.options[origIdx];
+    btn.addEventListener('click',function(){
+      if(!multi) return finish([origIdx]);
+      selected[origIdx]=!selected[origIdx];
+      btn.classList.toggle('selected',selected[origIdx]);
+      quizSubmit.disabled=!picked().length;
+    });
+    btns.push({el:btn, idx:origIdx});
+    quizOpts.appendChild(btn);
+  });
+  function picked(){ return Object.keys(selected).filter(function(k){return selected[k];}).map(Number); }
+  quizSubmit.onclick=function(){ if(picked().length) finish(picked()); };
+
+  function finish(chosen){
+    if(answered[idx]!==undefined) return;
+    var ok=sameSet(chosen,q.correct);            // semua-atau-nol
+    answered[idx]=ok; if(ok) correctN++;
+    btns.forEach(function(b){
+      var isCorrect=q.correct.indexOf(b.idx)>=0, isPicked=chosen.indexOf(b.idx)>=0;
+      b.el.disabled=true; b.el.classList.remove('selected');
+      if(isCorrect) b.el.classList.add(isPicked?'correct':'missed');
+      else if(isPicked) b.el.classList.add('wrong');
+    });
+    quizSubmit.style.display='none';
+    var answer=q.correct.map(function(i){return q.options[i];}).join(' + ');
+    quizFb.textContent = ok ? '✅ Benar! +'+(q.bobot||0)+' poin'
+                            : '❌ Jawaban benar: '+answer+(multi?' (semua harus dipilih)':'');
+    quizFb.className='quiz-fb '+(ok?'ok':'err');
+    quizNext.style.display='block';
+    scoreInfo.textContent='Quiz: '+quizScore()+' poin';
+    writeSummaries();               // pastikan slot 0 & 1 ada sebelum soal
+    recordInteraction(idx, chosen, ok);
+    save(false);
+  }
+  quizOverlay.classList.add('show');
+}
+quizNext.addEventListener('click',function(){
+  quizOverlay.classList.remove('show'); currentQuiz=null;
+  if(videoCompleted){
+    var p=nextPending(Infinity);
+    if(p>=0) showQuiz(p); else showDone();
+  } else v.play();
+});
+
+function showDone(){
+  save(false);
+  var s=reportScore();
+  $('doneScore').textContent = totalQ>0 ? s+' poin' : s+'%';
+  $('doneMsg').textContent = (totalQ>0
+      ? 'Video ditonton '+videoPct()+'% · Kuis: '+earnedBobot()+'/'+totalBobot+' ('+correctN+'/'+totalQ+' soal benar)'
+      : 'Video selesai ditonton sepenuhnya.')
+    + (isPassed() ? ' — LULUS' : ' — belum mencapai nilai minimal '+PASSING);
+  doneOverlay.classList.add('show');
+  setTimeout(function(){doneOverlay.classList.remove('show');},6000);
+}
+
+// ── Video events ─────────────────────────────────────────────────────
+function onMeta(){
+  if(dur) return;
+  dur=v.duration;
+  if(prevLoc>0 && prevLoc<dur-1) v.currentTime=prevLoc;
+  updateUI(); initSubtitle();
+}
+v.addEventListener('loadedmetadata',onMeta);
+if(v.readyState>=1) onMeta();
+
+v.addEventListener('timeupdate',function(){
+  var t=v.currentTime;
+  if(t>maxW && !isRestoring) maxW=t;
+  if(currentQuiz===null){ var p=nextPending(t); if(p>=0) showQuiz(p); }
+  updateUI();
+});
+v.addEventListener('ended',function(){
+  videoCompleted=true; maxW=dur; bp.textContent='↺'; updateUI();
+  var p=nextPending(Infinity);
+  if(p>=0) showQuiz(p); else showDone();
+});
+v.addEventListener('play', function(){bp.textContent='⏸';});
+v.addEventListener('pause',function(){if(!v.ended)bp.textContent='▶'; save(false);});
+
+// ── Anti-skip ────────────────────────────────────────────────────────
+var isRestoring=false;
+function enforceScrub(){
+  if(isRestoring) return;
+  if(v.currentTime>maxW+1){
+    isRestoring=true; v.currentTime=maxW;
+    setTimeout(function(){isRestoring=false;},200);
+  }
+}
+v.addEventListener('seeking',enforceScrub);
+v.addEventListener('seeked', enforceScrub);
+['click','mousedown','touchstart','touchmove'].forEach(function(ev){
+  pb.addEventListener(ev,function(e){e.preventDefault();e.stopPropagation();},true);
+});
+document.addEventListener('contextmenu',function(e){e.preventDefault();});
+document.addEventListener('keydown',function(e){
+  if([39,76,35,34].indexOf(e.keyCode)!==-1){e.preventDefault();e.stopPropagation();}
+  if(e.code==='Space' && currentQuiz===null){e.preventDefault(); togglePlay();}
+  if(e.code==='KeyF'){e.preventDefault(); toggleFullscreen();}
+},true);
+
+// ── Fullscreen ───────────────────────────────────────────────────────
+// Fullscreen elemen #player (bukan <video>) agar subtitle & kuis tetap tampil.
+// Jika iframe Moodle tidak mengizinkan fullscreen, pakai "pseudo fullscreen" (memenuhi frame).
+var player=$('player'), btnFs=$('btnFs');
+function fsElement(){ return document.fullscreenElement||document.webkitFullscreenElement; }
+function isFs(){ return !!fsElement() || player.classList.contains('pseudo-fs'); }
+function toggleFullscreen(){
+  if(player.classList.contains('pseudo-fs')){ player.classList.remove('pseudo-fs'); return updateFsBtn(); }
+  if(fsElement()){ (document.exitFullscreen||document.webkitExitFullscreen).call(document); return; }
+  var req=player.requestFullscreen||player.webkitRequestFullscreen;
+  if(req && (document.fullscreenEnabled||document.webkitFullscreenEnabled)){
+    var p=req.call(player);
+    if(p&&p.catch) p.catch(function(){ player.classList.add('pseudo-fs'); updateFsBtn(); });
+  } else if(v.webkitEnterFullscreen && /iPhone|iPod/.test(navigator.userAgent)){
+    v.webkitEnterFullscreen();            // iPhone hanya mendukung fullscreen pada <video>
+  } else {
+    player.classList.add('pseudo-fs'); updateFsBtn();
+  }
+}
+function updateFsBtn(){ btnFs.textContent=isFs()?'🗗':'⛶'; btnFs.title=isFs()?'Keluar layar penuh (F)':'Layar penuh (F)'; }
+btnFs.addEventListener('click',toggleFullscreen);
+document.addEventListener('fullscreenchange',updateFsBtn);
+document.addEventListener('webkitfullscreenchange',updateFsBtn);
+$('vOverlay').addEventListener('dblclick',function(e){e.preventDefault(); toggleFullscreen();});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape' && player.classList.contains('pseudo-fs')){ player.classList.remove('pseudo-fs'); updateFsBtn(); }
+});
+
+function togglePlay(){ if(currentQuiz!==null) return; v.paused?v.play():v.pause(); }
+$('vOverlay').addEventListener('click',togglePlay);
+bp.addEventListener('click',togglePlay);
+$('vol').addEventListener('input',function(){v.volume=this.value;});
+
+function updateUI(){
+  if(!dur) return;
+  var p=Math.min(100,Math.round(maxW/dur*100));
+  pf.style.width=p+'%'; pct.textContent=p+'%';
+  td.textContent=fmt(v.currentTime)+' / '+fmt(dur);
+  if(videoCompleted){st.textContent='✅ Selesai ditonton';st.style.color='#22c55e';}
+  else if(p>0){st.textContent='▶ Ditonton s.d. '+fmt(maxW);st.style.color='#38bdf8';}
+}
+
+setInterval(function(){save(false);},30000);
+window.addEventListener('pagehide',function(){save(true);});
+window.addEventListener('beforeunload',function(){save(true);});
+
+// ── Subtitle ─────────────────────────────────────────────────────────
+var subBox=$('subBox'), btnSub=$('btnSub'), subOn=true, subInit=false;
+function initSubtitle(){
+  var tracks=v.textTracks;
+  if(subInit||!tracks||!tracks.length) return;
+  subInit=true;
+  var track=tracks[0]; track.mode='hidden';
+  track.addEventListener('cuechange',function(){
+    var cues=this.activeCues;
+    if(cues && cues.length && subOn){
+      var lines=[];
+      for(var i=0;i<cues.length;i++) lines.push(cues[i].text.replace(/<[^>]+>/g,''));
+      subBox.textContent=lines.join('\n'); subBox.style.display='block';
+    } else subBox.style.display='none';
+  });
+}
+if(btnSub){
+  btnSub.style.background='#1d4ed8';
+  btnSub.addEventListener('click',function(){
+    subOn=!subOn;
+    this.style.background=subOn?'#1d4ed8':'#334155';
+    this.style.opacity=subOn?'1':'0.45';
+    if(!subOn) subBox.style.display='none';
+  });
+}
+</script>
+</body>
+</html>

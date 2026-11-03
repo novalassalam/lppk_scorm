@@ -1,0 +1,36 @@
+[
+  {
+    "time": "00:30",
+    "type": "single",
+    "question": "Apa yang dimaksud dengan Machine Learning?",
+    "options": [
+      "Sistem yang belajar dari data tanpa diprogram secara eksplisit",
+      "Program komputer yang menjalankan perintah manual",
+      "Database yang menyimpan data dalam jumlah besar",
+      "Jaringan komputer yang saling terhubung"
+    ],
+    "correct": 0,
+    "bobot": 30
+  },
+  {
+    "time": "02:01",
+    "type": "multiple",
+    "question": "Manakah yang termasuk algoritma Supervised Learning? (pilih semua yang benar)",
+    "options": [
+      "Decision Tree",
+      "Linear Regression",
+      "K-Means Clustering",
+      "Principal Component Analysis"
+    ],
+    "correct": [0, 1],
+    "bobot": 40
+  },
+  {
+    "time": "02:30",
+    "type": "truefalse",
+    "question": "Training data dipakai untuk melatih model agar bisa membuat prediksi.",
+    "options": ["Benar", "Salah"],
+    "correct": 0,
+    "bobot": 30
+  }
+]

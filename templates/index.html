@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Video → SCORM</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+  body{background:#f4f6fb}
+  .q-card .opt{padding:2px 0}
+  .q-card .opt.correct{color:#198754;font-weight:600}
+  #preview{max-height:260px;background:#000}
+  .opt-row .form-check-input{margin-top:.6rem}
+</style>
+</head>
+<body>
+<nav class="navbar navbar-dark bg-primary mb-4">
+  <div class="container">
+    <span class="navbar-brand"><i class="bi bi-film"></i> Video → SCORM</span>
+    <span class="text-white-50 small">Moodle 5 compatible · project <code class="text-white" id="pidLabel">-</code></span>
+  </div>
+</nav>
+
+<div class="container pb-5">
+  <div class="row g-4">
+    <!-- ── Kolom kiri: video ── -->
+    <div class="col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-header fw-semibold"><i class="bi bi-camera-video"></i> 1. Video</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label">Nama Video / Judul Materi</label>
+            <input type="text" class="form-control" id="title" placeholder="mis. Pengantar Machine Learning">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Upload Video</label>
+            <input type="file" class="form-control" id="videoFile" accept="video/*,.mkv">
+            <div class="progress mt-2 d-none" id="videoProg" style="height:18px">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:0%">0%</div>
+            </div>
+            <div class="form-text" id="videoInfo">Belum ada video.</div>
+            <div class="form-text text-muted" id="limitsInfo"></div>
+            <video id="preview" class="w-100 rounded mt-2 d-none" controls></video>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Upload Subtitle <span class="text-muted small">(opsional: .srt / .vtt / .sbv)</span></label>
+            <div class="input-group">
+              <input type="file" class="form-control" id="subFile" accept=".srt,.vtt,.sbv">
+              <button class="btn btn-outline-danger d-none" id="btnDelSub" title="Hapus subtitle"><i class="bi bi-trash"></i></button>
+            </div>
+            <div class="form-text" id="subInfo">Belum ada subtitle.</div>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-7">
+              <label class="form-label">Konversi Resolusi</label>
+              <select class="form-select" id="resolution"></select>
+            </div>
+            <div class="col-5">
+              <label class="form-label">Nilai Minimal Lulus</label>
+              <input type="number" class="form-control" id="passing" min="0" max="100" value="70">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Versi SCORM</label>
+              <select class="form-select" id="scormVersion">
+                <option value="1.2">SCORM 1.2 — direkomendasikan (Interactions &amp; Objectives report Moodle lengkap)</option>
+                <option value="2004">SCORM 2004 4th Edition</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <div class="form-text">
+                <strong>Score / Gradebook</strong>: ada kuis → nilai kuis, tanpa kuis → % video ditonton.
+                Di <em>Interactions report</em>: Question 0 = VIDEO_DITONTON (% video),
+                Question 1 = HASIL_KUIS_FINAL, Question 2 dst. = soal.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mt-4">
+        <div class="card-header fw-semibold"><i class="bi bi-box-seam"></i> 3. Generate SCORM</div>
+        <div class="card-body">
+          <button class="btn btn-success w-100 btn-lg" id="btnGenerate"><i class="bi bi-gear"></i> Generate SCORM</button>
+          <div id="jobBox" class="mt-3 d-none">
+            <div class="small mb-1" id="jobStage"></div>
+            <div class="progress" style="height:20px">
+              <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" id="jobBar" style="width:0%">0%</div>
+            </div>
+          </div>
+          <div id="jobResult" class="mt-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Kolom kanan: pertanyaan ── -->
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+          <span class="fw-semibold me-auto"><i class="bi bi-patch-question"></i> 2. Pertanyaan Pilihan Ganda</span>
+          <span class="badge text-bg-secondary" id="bobotBadge">Total bobot: 0</span>
+          <span class="small text-muted" id="saveState"></span>
+        </div>
+        <div class="card-body">
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button class="btn btn-primary" id="btnAdd"><i class="bi bi-plus-lg"></i> Tambah Pertanyaan</button>
+            <label class="btn btn-outline-secondary mb-0"><i class="bi bi-upload"></i> Import JSON
+              <input type="file" id="importFile" accept=".json" hidden></label>
+            <a class="btn btn-outline-secondary" id="btnExport"><i class="bi bi-download"></i> Download JSON</a>
+          </div>
+          <div id="qList"></div>
+          <div class="text-center text-muted py-4" id="qEmpty">
+            Belum ada pertanyaan. Tanpa pertanyaan, SCORM tetap dibuat (nilai = progres menonton).
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal pertanyaan ── -->
+<div class="modal fade" id="qModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <form class="modal-content" id="qForm" novalidate>
+      <div class="modal-header">
+        <h5 class="modal-title" id="qModalTitle">Tambah Pertanyaan</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <label class="form-label">Waktu muncul (MM:SS)</label>
+            <div class="input-group">
+              <input type="text" class="form-control" id="qTime" placeholder="00:30" required>
+              <button type="button" class="btn btn-outline-secondary" id="btnTimeNow" title="Ambil dari posisi preview video">
+                <i class="bi bi-stopwatch"></i> Dari preview</button>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Bobot (poin)</label>
+            <input type="number" class="form-control" id="qBobot" min="0" step="any" required>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Tipe soal</label>
+          <div class="btn-group w-100 flex-wrap" role="group" id="qTypeGroup">
+            <input type="radio" class="btn-check" name="qType" id="qtSingle" value="single">
+            <label class="btn btn-outline-primary" for="qtSingle"><i class="bi bi-record-circle"></i> Pilihan ganda</label>
+            <input type="radio" class="btn-check" name="qType" id="qtMultiple" value="multiple">
+            <label class="btn btn-outline-primary" for="qtMultiple"><i class="bi bi-check2-square"></i> Jawaban ganda</label>
+            <input type="radio" class="btn-check" name="qType" id="qtTF" value="truefalse">
+            <label class="btn btn-outline-primary" for="qtTF"><i class="bi bi-toggle-on"></i> Benar / Salah</label>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Pertanyaan</label>
+          <textarea class="form-control" id="qText" rows="2" required></textarea>
+        </div>
+        <label class="form-label">Pilihan jawaban <span class="text-muted small" id="optHelp"></span></label>
+        <div id="optList"></div>
+        <button type="button" class="btn btn-sm btn-outline-primary mt-1" id="btnAddOpt"><i class="bi bi-plus"></i> Tambah opsi</button>
+        <div class="alert alert-danger mt-3 mb-0 d-none" id="qError"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+$(function(){
+  var pid = new URLSearchParams(location.search).get('p');
+  var questions = [], duration = null, editIdx = null;
+  var qModal = new bootstrap.Modal('#qModal');
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  function api(method, url, data){
+    return $.ajax({url:url, method:method, contentType:'application/json',
+                   data: data===undefined ? undefined : JSON.stringify(data)});
+  }
+  function errMsg(xhr){
+    var d = xhr.responseJSON && xhr.responseJSON.detail;
+    if($.isArray(d)) return d.map(function(e){ return 'Soal #'+((e.loc||[])[1]+1)+': '+String(e.msg).replace(/^Value error, /,''); }).join('\n');
+    return d || xhr.statusText || 'Terjadi kesalahan';
+  }
+  function parseTime(t){
+    if(!/^(\d+:)?\d{1,2}:\d{2}$/.test(t)) return null;
+    return t.split(':').reduce(function(a,p){ return a*60 + parseInt(p,10); }, 0);
+  }
+  function fmtTime(s){
+    s=Math.floor(s); var h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
+    var mm=(m<10?'0':'')+m, ss=(x<10?'0':'')+x;
+    return h ? h+':'+mm+':'+ss : mm+':'+ss;
+  }
+  function mb(b){ return (b/1048576).toFixed(1)+' MB'; }
+  var TYPE_SHORT={single:'Pilihan ganda', multiple:'Jawaban ganda', truefalse:'Benar/Salah'};
+  var TF_OPTIONS=['Benar','Salah'];
+  // Soal lama tanpa 'type': correct berupa list >1 → jawaban ganda, selain itu pilihan ganda
+  function correctList(q){ return $.isArray(q.correct) ? q.correct : [q.correct]; }
+  function qType(q){ return q.type || (correctList(q).length>1 ? 'multiple' : 'single'); }
+  function totalBobot(){ return questions.reduce(function(s,q){ return s+(+q.bobot||0); },0); }
+
+  // ── Upload raw (dengan progress) ─────────────────────────────────
+  function upload(url, file, $prog){
+    if($prog){ $prog.removeClass('d-none').find('.progress-bar').css('width','0%').text('0%'); }
+    return $.ajax({
+      url: url + '?filename=' + encodeURIComponent(file.name),
+      method:'PUT', data:file, processData:false, contentType:'application/octet-stream',
+      xhr: function(){
+        var x = $.ajaxSettings.xhr();
+        if($prog) x.upload.addEventListener('progress', function(e){
+          if(e.lengthComputable){ var p=Math.round(e.loaded/e.total*100);
+            $prog.find('.progress-bar').css('width',p+'%').text(p+'%'); }
+        });
+        return x;
+      }
+    });
+  }
+
+  // ── Load project ─────────────────────────────────────────────────
+  function init(){
+    if(!pid){
+      return api('POST','/api/projects').done(function(r){
+        pid=r.id; history.replaceState(null,'','?p='+pid); load();
+      });
+    }
+    load();
+  }
+  function load(){
+    $('#pidLabel').text(pid);
+    $('#btnExport').attr('href','/api/projects/'+pid+'/questions?download=1');
+    api('GET','/api/projects/'+pid).done(function(r){
+      var m=r.meta;
+      $('#resolution').empty();
+      $.each(r.resolutions, function(_,res){ $('#resolution').append($('<option>').val(res[0]).text(res[1])); });
+      $('#resolution').val(m.resolution||'720');
+      $('#title').val(m.title||'');
+      $('#passing').val(m.passing!=null ? m.passing : 70);
+      $('#scormVersion').val(m.version||'1.2');
+      $('#limitsInfo').text('Maks. '+r.max_upload_mb+' MB per video'
+        + (r.retention_days>0 ? ' · project & file dihapus otomatis setelah '+r.retention_days+' hari tidak aktif (simpan link halaman ini untuk melanjutkan)' : ''));
+      if(r.has_video) setVideoInfo(m);
+      setSubInfo(r.has_subtitle ? m.subtitle_name : null);
+      questions = r.questions; render();
+    }).fail(function(){
+      history.replaceState(null,'','/'); pid=null; init();
+    });
+  }
+  function setVideoInfo(m){
+    duration = m.duration;
+    $('#videoInfo').html('').append(
+      $('<span class="text-success">').html('<i class="bi bi-check-circle"></i> '),
+      document.createTextNode(m.video_name+' — '+mb(m.video_size)+' — durasi '+fmtTime(m.duration)));
+    if(!$('#title').val()) $('#title').val(m.video_name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' '));
+  }
+  function setSubInfo(name){
+    $('#btnDelSub').toggleClass('d-none', !name);
+    $('#subInfo').text(name ? '✔ '+name+' (dikonversi ke WebVTT)' : 'Belum ada subtitle.');
+  }
+
+  // ── Video & subtitle ─────────────────────────────────────────────
+  $('#videoFile').on('change', function(){
+    var f=this.files[0]; if(!f) return;
+    $('#preview').attr('src', URL.createObjectURL(f)).removeClass('d-none');
+    $('#videoInfo').text('Mengupload '+f.name+' ('+mb(f.size)+')…');
+    upload('/api/projects/'+pid+'/video', f, $('#videoProg'))
+      .done(function(r){ setVideoInfo(r.meta); render(); })
+      .fail(function(x){ $('#videoInfo').html('').append($('<span class="text-danger">').text('Gagal: '+errMsg(x))); })
+      .always(function(){ setTimeout(function(){ $('#videoProg').addClass('d-none'); },800); });
+  });
+  $('#subFile').on('change', function(){
+    var f=this.files[0]; if(!f) return;
+    upload('/api/projects/'+pid+'/subtitle', f)
+      .done(function(r){ setSubInfo(r.meta.subtitle_name); })
+      .fail(function(x){ alert('Subtitle gagal: '+errMsg(x)); })
+      .always(function(){ $('#subFile').val(''); });
+  });
+  $('#btnDelSub').on('click', function(){
+    api('DELETE','/api/projects/'+pid+'/subtitle').done(function(){ setSubInfo(null); });
+  });
+
+  // ── Render daftar pertanyaan ─────────────────────────────────────
+  function render(){
+    var $list=$('#qList').empty();
+    $('#qEmpty').toggle(questions.length===0);
+    var order = questions.map(function(q,i){ return i; })
+      .sort(function(a,b){ return parseTime(questions[a].time)-parseTime(questions[b].time); });
+    order.forEach(function(i, n){
+      var q=questions[i], t=parseTime(q.time);
+      var $card=$('<div class="card q-card mb-2"><div class="card-body py-2"></div></div>');
+      var $b=$card.find('.card-body');
+      var $head=$('<div class="d-flex align-items-start gap-2">');
+      $head.append($('<span class="badge text-bg-primary mt-1">').text('#'+(n+1)));
+      $head.append($('<span class="badge text-bg-dark mt-1">').html('<i class="bi bi-clock"></i> ').append(document.createTextNode(q.time)));
+      $head.append($('<span class="badge text-bg-warning mt-1">').text('Bobot '+q.bobot));
+      $head.append($('<span class="badge text-bg-info mt-1">').text(TYPE_SHORT[qType(q)]));
+      $head.append($('<div class="fw-semibold flex-grow-1">').text(q.question));
+      $head.append($('<div class="btn-group btn-group-sm">').append(
+        $('<button class="btn btn-outline-secondary btn-edit" title="Edit"><i class="bi bi-pencil"></i></button>').data('i',i),
+        $('<button class="btn btn-outline-danger btn-del" title="Hapus"><i class="bi bi-trash"></i></button>').data('i',i)));
+      $b.append($head);
+      var $ol=$('<ol type="A" class="mb-1 mt-2 small">');
+      var cl=correctList(q);
+      q.options.forEach(function(o,oi){
+        var ok=cl.indexOf(oi)>=0;
+        $ol.append($('<li class="opt">').toggleClass('correct', ok).text(o + (ok ? '  ✓' : '')));
+      });
+      $b.append($ol);
+      if(duration && t>duration)
+        $b.append($('<div class="small text-danger">').text('⚠ Waktu melebihi durasi video ('+fmtTime(duration)+'), akan ditampilkan di akhir video.'));
+      $list.append($card);
+    });
+    var tb=totalBobot();
+    $('#bobotBadge').text('Total bobot: '+tb)
+      .toggleClass('text-bg-success', tb===100).toggleClass('text-bg-warning', questions.length>0 && tb!==100)
+      .toggleClass('text-bg-secondary', questions.length===0);
+    $('#bobotBadge').attr('title', tb!==100 && questions.length ? 'Total ≠ 100, nilai akan dinormalisasi ke skala 100' : '');
+  }
+
+  // ── Simpan ke questions.json ─────────────────────────────────────
+  function persist(){
+    $('#saveState').text('Menyimpan…');
+    return api('PUT','/api/projects/'+pid+'/questions', questions)
+      .done(function(){ $('#saveState').html('<i class="bi bi-cloud-check text-success"></i> Tersimpan ke questions.json'); })
+      .fail(function(x){ $('#saveState').html('').append($('<span class="text-danger">').text('Gagal simpan: '+errMsg(x))); });
+  }
+
+  // ── Modal tambah / edit ──────────────────────────────────────────
+  function curType(){ return $('input[name=qType]:checked').val(); }
+  function addOptRow(text, checked){
+    var t=curType(), tf=t==='truefalse';
+    var $row=$('<div class="input-group mb-2 opt-row">');
+    $row.append($('<div class="input-group-text">').append(
+      $('<input class="form-check-input mt-0 opt-correct" name="correctOpt">')
+        .attr('type', t==='multiple' ? 'checkbox' : 'radio').prop('checked',!!checked)));
+    $row.append($('<input type="text" class="form-control opt-text">').val(text||'').prop('readonly',tf));
+    if(!tf) $row.append($('<button type="button" class="btn btn-outline-danger btn-del-opt"><i class="bi bi-x-lg"></i></button>'));
+    $('#optList').append($row);
+    relabelOpts();
+  }
+  function relabelOpts(){
+    $('#optList .opt-text').each(function(i){ $(this).attr('placeholder','Opsi '+String.fromCharCode(65+i)); });
+    $('#optList .btn-del-opt').prop('disabled', $('#optList .opt-row').length<=2);
+  }
+  function readOpts(){
+    var opts=[], correct=[];
+    $('#optList .opt-row').each(function(i){
+      opts.push($.trim($(this).find('.opt-text').val()));
+      if($(this).find('.opt-correct').is(':checked')) correct.push(i);
+    });
+    return {options:opts, correct:correct};
+  }
+  // Bangun ulang daftar opsi sesuai tipe (teks & centang lama dipertahankan bila bisa)
+  function buildOpts(type, options, correct){
+    $('#optList').empty();
+    if(type==='truefalse'){
+      options=TF_OPTIONS; correct=correct.length ? [correct[0]>0?1:0] : [0];
+    } else if(type==='single' && correct.length>1){
+      correct=[correct[0]];
+    }
+    options.forEach(function(o,i){ addOptRow(o, correct.indexOf(i)>=0); });
+    $('#btnAddOpt').toggle(type!=='truefalse');
+    $('#optHelp').text({single:'(klik bulatan pada SATU jawaban benar)',
+                        multiple:'(centang SEMUA jawaban benar — peserta harus memilih semuanya untuk mendapat nilai)',
+                        truefalse:'(pilih mana yang benar)'}[type]);
+  }
+  $('input[name=qType]').on('change', function(){
+    var cur=readOpts(), t=curType();
+    var opts = (t!=='truefalse' && cur.options.join()===TF_OPTIONS.join()) ? ['','','',''] : cur.options;
+    buildOpts(t, opts, cur.correct);
+  });
+  function openModal(idx){
+    editIdx = idx;
+    var q = idx===null ? {time:'', type:'single', question:'', options:['','','',''], correct:0,
+                          bobot: Math.max(0, 100-totalBobot())} : questions[idx];
+    var t=qType(q);
+    $('#qModalTitle').text(idx===null ? 'Tambah Pertanyaan' : 'Edit Pertanyaan');
+    $('#qTime').val(q.time); $('#qText').val(q.question); $('#qBobot').val(q.bobot);
+    $('input[name=qType][value='+t+']').prop('checked',true);
+    buildOpts(t, q.options.slice(), correctList(q).slice());
+    $('#qError').addClass('d-none');
+    qModal.show();
+  }
+  $('#btnAdd').on('click', function(){ openModal(null); });
+  $('#qList').on('click','.btn-edit', function(){ openModal($(this).data('i')); });
+  $('#qList').on('click','.btn-del', function(){
+    var i=$(this).data('i');
+    if(!confirm('Hapus pertanyaan "'+questions[i].question+'"?')) return;
+    questions.splice(i,1); render(); persist();
+  });
+  $('#btnAddOpt').on('click', function(){ addOptRow('', false); });
+  $('#optList').on('click','.btn-del-opt', function(){
+    $(this).closest('.opt-row').remove(); relabelOpts();
+  });
+  $('#btnTimeNow').on('click', function(){
+    var v=$('#preview')[0];
+    if(!v.src) return alert('Pilih video dulu untuk memakai preview.');
+    $('#qTime').val(fmtTime(v.currentTime));
+  });
+
+  $('#qForm').on('submit', function(e){
+    e.preventDefault();
+    var time=$.trim($('#qTime').val()), text=$.trim($('#qText').val()),
+        bobot=parseFloat($('#qBobot').val()), errs=[], type=curType(),
+        r=readOpts(), opts=r.options, correct=r.correct;
+    if(parseTime(time)===null) errs.push('Waktu harus format MM:SS atau HH:MM:SS (mis. 01:30).');
+    if(!text) errs.push('Pertanyaan wajib diisi.');
+    if(opts.length<2) errs.push('Minimal 2 opsi jawaban.');
+    if(opts.some(function(o){ return !o; })) errs.push('Semua opsi jawaban harus diisi.');
+    if(!correct.length) errs.push(type==='multiple' ? 'Centang minimal satu jawaban yang benar.' : 'Pilih jawaban yang benar.');
+    if(isNaN(bobot) || bobot<0) errs.push('Bobot harus angka ≥ 0.');
+    if(errs.length){ $('#qError').removeClass('d-none').html(errs.join('<br>')); return; }
+
+    var q={time:time, type:type, question:text, options:opts,
+           correct: type==='multiple' ? correct : correct[0], bobot:bobot};
+    if(editIdx===null) questions.push(q); else questions[editIdx]=q;
+    qModal.hide(); render(); persist();
+  });
+
+  // ── Import JSON ──────────────────────────────────────────────────
+  $('#importFile').on('change', function(){
+    var f=this.files[0]; if(!f) return;
+    var reader=new FileReader();
+    reader.onload=function(){
+      var data;
+      try{ data=JSON.parse(reader.result); }catch(e){ return alert('File JSON tidak valid.'); }
+      if(!$.isArray(data)) return alert('Isi JSON harus berupa array pertanyaan.');
+      if(questions.length && !confirm('Ganti '+questions.length+' pertanyaan yang ada dengan isi file?')) return;
+      var backup=questions; questions=data;
+      persist().done(function(){ load(); })
+               .fail(function(x){ questions=backup; render(); alert('Import gagal:\n'+errMsg(x)); });
+    };
+    reader.readAsText(f);
+    $(this).val('');
+  });
+
+  // ── Generate ─────────────────────────────────────────────────────
+  $('#btnGenerate').on('click', function(){
+    var title=$.trim($('#title').val());
+    if(!title){ $('#title').addClass('is-invalid').focus(); return; }
+    $('#title').removeClass('is-invalid');
+    var $btn=$(this).prop('disabled',true);
+    $('#jobResult').empty(); $('#jobBox').removeClass('d-none');
+    setJob(0,'Memulai…');
+    api('POST','/api/projects/'+pid+'/generate', {
+      title:title, resolution:$('#resolution').val(), passing:parseFloat($('#passing').val())||0,
+      version:$('#scormVersion').val()
+    }).done(function(r){ poll(r.job, $btn); })
+      .fail(function(x){ $btn.prop('disabled',false); $('#jobBox').addClass('d-none');
+        $('#jobResult').html('').append($('<div class="alert alert-danger">').text(errMsg(x))); });
+  });
+  function setJob(p, stage){
+    $('#jobBar').css('width',p+'%').text(Math.round(p)+'%'); $('#jobStage').text(stage);
+  }
+  function poll(jid, $btn){
+    api('GET','/api/jobs/'+jid).done(function(j){
+      setJob(j.progress, j.stage);
+      if(j.status==='running') return setTimeout(function(){ poll(jid,$btn); }, 1000);
+      $btn.prop('disabled',false); $('#jobBox').addClass('d-none');
+      if(j.status==='done'){
+        $('#jobResult').html('').append($('<div class="alert alert-success mb-0">').append(
+          $('<div class="mb-2">').text('✅ '+j.file+' ('+mb(j.size)+') — '+j.questions+' pertanyaan'),
+          $('<a class="btn btn-success">').attr('href','/api/jobs/'+jid+'/download')
+            .html('<i class="bi bi-download"></i> Download ZIP SCORM')));
+      } else {
+        $('#jobResult').html('').append($('<pre class="alert alert-danger small mb-0" style="white-space:pre-wrap">').text(j.error));
+      }
+    }).fail(function(){ setTimeout(function(){ poll(jid,$btn); }, 2000); });
+  }
+
+  init();
+});
+</script>
+</body>
+</html>
