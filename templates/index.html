@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Video → SCORM</title>
+<script>
+  // Alamat API relatif (bisa dipasang di subfolder), jadi URL halaman wajib diakhiri '/'
+  if (!location.pathname.endsWith('/')) location.replace(location.pathname + '/' + location.search);
+</script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <style>
@@ -227,7 +231,7 @@ $(function(){
   // ── Load project ─────────────────────────────────────────────────
   function init(){
     if(!pid){
-      return api('POST','/api/projects').done(function(r){
+      return api('POST','api/projects').done(function(r){
         pid=r.id; history.replaceState(null,'','?p='+pid); load();
       });
     }
@@ -235,8 +239,8 @@ $(function(){
   }
   function load(){
     $('#pidLabel').text(pid);
-    $('#btnExport').attr('href','/api/projects/'+pid+'/questions?download=1');
-    api('GET','/api/projects/'+pid).done(function(r){
+    $('#btnExport').attr('href','api/projects/'+pid+'/questions?download=1');
+    api('GET','api/projects/'+pid).done(function(r){
       var m=r.meta;
       $('#resolution').empty();
       $.each(r.resolutions, function(_,res){ $('#resolution').append($('<option>').val(res[0]).text(res[1])); });
@@ -250,7 +254,7 @@ $(function(){
       setSubInfo(r.has_subtitle ? m.subtitle_name : null);
       questions = r.questions; render();
     }).fail(function(){
-      history.replaceState(null,'','/'); pid=null; init();
+      history.replaceState(null,'',location.pathname); pid=null; init();
     });
   }
   function setVideoInfo(m){
@@ -270,20 +274,20 @@ $(function(){
     var f=this.files[0]; if(!f) return;
     $('#preview').attr('src', URL.createObjectURL(f)).removeClass('d-none');
     $('#videoInfo').text('Mengupload '+f.name+' ('+mb(f.size)+')…');
-    upload('/api/projects/'+pid+'/video', f, $('#videoProg'))
+    upload('api/projects/'+pid+'/video', f, $('#videoProg'))
       .done(function(r){ setVideoInfo(r.meta); render(); })
       .fail(function(x){ $('#videoInfo').html('').append($('<span class="text-danger">').text('Gagal: '+errMsg(x))); })
       .always(function(){ setTimeout(function(){ $('#videoProg').addClass('d-none'); },800); });
   });
   $('#subFile').on('change', function(){
     var f=this.files[0]; if(!f) return;
-    upload('/api/projects/'+pid+'/subtitle', f)
+    upload('api/projects/'+pid+'/subtitle', f)
       .done(function(r){ setSubInfo(r.meta.subtitle_name); })
       .fail(function(x){ alert('Subtitle gagal: '+errMsg(x)); })
       .always(function(){ $('#subFile').val(''); });
   });
   $('#btnDelSub').on('click', function(){
-    api('DELETE','/api/projects/'+pid+'/subtitle').done(function(){ setSubInfo(null); });
+    api('DELETE','api/projects/'+pid+'/subtitle').done(function(){ setSubInfo(null); });
   });
 
   // ── Render daftar pertanyaan ─────────────────────────────────────
@@ -327,7 +331,7 @@ $(function(){
   // ── Simpan ke questions.json ─────────────────────────────────────
   function persist(){
     $('#saveState').text('Menyimpan…');
-    return api('PUT','/api/projects/'+pid+'/questions', questions)
+    return api('PUT','api/projects/'+pid+'/questions', questions)
       .done(function(){ $('#saveState').html('<i class="bi bi-cloud-check text-success"></i> Tersimpan ke questions.json'); })
       .fail(function(x){ $('#saveState').html('').append($('<span class="text-danger">').text('Gagal simpan: '+errMsg(x))); });
   }
@@ -449,7 +453,7 @@ $(function(){
     var $btn=$(this).prop('disabled',true);
     $('#jobResult').empty(); $('#jobBox').removeClass('d-none');
     setJob(0,'Memulai…');
-    api('POST','/api/projects/'+pid+'/generate', {
+    api('POST','api/projects/'+pid+'/generate', {
       title:title, resolution:$('#resolution').val(), passing:parseFloat($('#passing').val())||0,
       version:$('#scormVersion').val()
     }).done(function(r){ poll(r.job, $btn); })
@@ -460,14 +464,14 @@ $(function(){
     $('#jobBar').css('width',p+'%').text(Math.round(p)+'%'); $('#jobStage').text(stage);
   }
   function poll(jid, $btn){
-    api('GET','/api/jobs/'+jid).done(function(j){
+    api('GET','api/jobs/'+jid).done(function(j){
       setJob(j.progress, j.stage);
       if(j.status==='running') return setTimeout(function(){ poll(jid,$btn); }, 1000);
       $btn.prop('disabled',false); $('#jobBox').addClass('d-none');
       if(j.status==='done'){
         $('#jobResult').html('').append($('<div class="alert alert-success mb-0">').append(
           $('<div class="mb-2">').text('✅ '+j.file+' ('+mb(j.size)+') — '+j.questions+' pertanyaan'),
-          $('<a class="btn btn-success">').attr('href','/api/jobs/'+jid+'/download')
+          $('<a class="btn btn-success">').attr('href','api/jobs/'+jid+'/download')
             .html('<i class="bi bi-download"></i> Download ZIP SCORM')));
       } else {
         $('#jobResult').html('').append($('<pre class="alert alert-danger small mb-0" style="white-space:pre-wrap">').text(j.error));
