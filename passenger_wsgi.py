@@ -8,6 +8,9 @@ import os, sys, threading
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+# ffmpeg/ffprobe static di ~/bin (hosting tidak menyediakan ffmpeg)
+os.environ['PATH'] = os.path.expanduser('~/bin') + os.pathsep + os.environ.get('PATH', '')
+
 from a2wsgi import ASGIMiddleware
 
 import app as web
