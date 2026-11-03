@@ -4,7 +4,9 @@ Penghubung untuk cPanel "Setup Python App" (Passenger, WSGI).
   Application Entry point  : application
 """
 
-import threading
+import os, sys, threading
+
+sys.path.insert(0, os.path.dirname(__file__))
 
 from a2wsgi import ASGIMiddleware
 
